@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Неоновые Слоты 🎰</title>
+    <style>
+        /*
+        ================================
+        CSS СТИЛИ
+        ================================
+        */
+        :root {
+            --bg-color: #0d1117;
+            --accent-color: #00ffaa;
+            --secondary-color: #9b59b6;
+            --text-color: #e6f7ff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: background-color 0.5s;
+        }
+
+        /* Визуальный эффект при выигрыше */
+        body.win-flash {
+            animation: win-pulse 0.3s 3 alternate;
+        }
+
+        @keyframes win-pulse {
+            from { box-shadow: 0 0 10px var(--accent-color); background-color: var(--bg-color); }
+            to { box-shadow: 0 0 40px var(--accent-color); background-color: #1a222c; }
+        }
+
+        .slot-machine {
+            padding: 40px;
+            border-radius: 15px;
+            background: rgba(1, 1, 1, 0.4);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--secondary-color);
+            border: 2px solid var(--secondary-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .reels-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .reel {
+            width: 100px;
+            height: 100px;
+            font-size: 60px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: #000;
+            border: 3px solid var(--accent-color);
+            box-shadow: 0 0 15px rgba(0, 255, 170, 0.6);
+            overflow: hidden;
+            transition: transform 0.1s ease-out;
+        }
+
+        .reel.spinning {
+            animation: spin-blur 0.1s infinite;
+        }
+
+        @keyframes spin-blur {
+            0% { filter: blur(2px); transform: translateY(-5px); }
+            100% { filter: blur(0); transform: translateY(0); }
+        }
+
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .display {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: var(--text-color);
+            padding: 5px 15px;
+            border-radius: 5px;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+        }
+
+        #spinButton {
+            padding: 15px 30px;
+            font-size: 1.5em;
+            font-weight: 800;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: linear-gradient(90deg, var(--secondary-color), var(--accent-color));
+            color: var(--bg-color);
+            box-shadow: 0 5px 20px rgba(0, 255, 170, 0.4);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        #spinButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 25px rgba(0, 255, 170, 0.8);
+        }
+
+        #spinButton:disabled {
+            background: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        #message {
+            min-height: 20px;
+            margin-top: 10px;
+            font-size: 1.2em;
+            text-align: center;
+            text-shadow: 0 0 8px var(--accent-color);
+        }
+        
+    </style>
+</head>
+<body>
+
+<div class="slot-machine">
+    <h1>🎰 Неоновые Слоты РЖДК</h1>
+    <div class="reels-container" id="reelsContainer">
+        <div class="reel" id="reel1">🍒</div>
+        <div class="reel" id="reel2">🍒</div>
+        <div class="reel" id="reel3">🍒</div>
+    </div>
+
+    <div class="controls-container">
+        <div class="display" id="balanceDisplay">Баланс: 500</div>
+        <button id="spinButton">Крутить (Ставка: 10)</button>
+        <div class="display" id="message">Нажмите "Крутить!"</div>
+    </div>
+</div>
+
+<script>
+    /*
+    ================================
+    JAVASCRIPT ЛОГИКА
+    ================================
+    */
+    const SYMBOLS = ['🍒', '🍋', '🔔', '💎', '7️⃣'];
+    const REEL_ELEMENTS = [
+        document.getElementById('reel1'),
+        document.getElementById('reel2'),
+        document.getElementById('reel3')
+    ];
+    const spinButton = document.getElementById('spinButton');
+    
+    let balance = 500;
+    const BET = 10;
+    let isSpinning = false;
+
+    /** Обновляет баланс и сообщение на экране */
+    function updateDisplay(msg = '') {
+        document.getElementById('balanceDisplay').textContent = `Баланс: ${balance}`;
+        if (msg) document.getElementById('message').textContent = msg;
+        
+        spinButton.disabled = isSpinning || balance < BET;
+        if (balance < BET) {
+            updateDisplay('Недостаточно кредитов! Начните заново.');
+        }
+    }
+    
+    /** Получает случайный символ */
+    function getRandomSymbol() {
+        return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+    }
+
+    /** Проверяет результат и начисляет выигрыш */
+    function checkWin(results) {
+        let winAmount = 0;
+        const [r1, r2, r3] = results;
+
+        if (r1 === r2 && r2 === r3) {
+            // Тройной выигрыш
+            if (r1 === '7️⃣') {
+                winAmount = 500; // Джекпот
+            } else if (r1 === '💎') {
+                winAmount = 300; 
+            } else {
+                winAmount = 150; 
+            }
+        } else if (r1 === r2 || r2 === r3 || r1 === r3) {
+            // Двойной выигрыш
+            winAmount = 30; 
+        }
+        
+        if (winAmount > 0) {
+            balance += winAmount;
+            // Активация спецэффекта
+            document.body.classList.add('win-flash');
+            updateDisplay(`🎉 ВЫИГРЫШ! +${winAmount} кредитов!`);
+        } else {
+            updateDisplay('🙁 Попробуйте снова. Повезёт!');
+        }
+        
+        isSpinning = false;
+        updateDisplay();
+    }
+
+    /** Запускает вращение барабанов */
+    function spin() {
+        if (isSpinning || balance < BET) return;
+        
+        // Сброс предыдущих эффектов
+        document.body.classList.remove('win-flash');
+        
+        isSpinning = true;
+        balance -= BET;
+        updateDisplay('Крутим...');
+
+        const finalResults = [];
+        let stopCount = 0;
+        
+        REEL_ELEMENTS.forEach(reel => reel.classList.add('spinning'));
+
+        // Каждое колесо останавливается с небольшой задержкой
+        REEL_ELEMENTS.forEach((reel, index) => {
+            const stopDelay = 1000 + (index * 400); // 1.0с, 1.4с, 1.8с
+            
+            // Внутренний интервал для быстрого переключения символов
+            const spinInterval = setInterval(() => {
+                reel.textContent = getRandomSymbol();
+            }, 80);
+
+            // Остановка
+            setTimeout(() => {
+                clearInterval(spinInterval);
+                reel.classList.remove('spinning');
+                
+                const finalSymbol = getRandomSymbol();
+                reel.textContent = finalSymbol;
+                finalResults.push(finalSymbol);
+                stopCount++;
+                
+                if (stopCount === 3) {
+                    checkWin(finalResults);
+                }
+            }, stopDelay);
+        });
+    }
+
+    // Инициализация
+    window.onload = () => {
+        spinButton.addEventListener('click', spin);
+        updateDisplay('Ставка: 10 кредитов. Удачи!');
+    };
+
+</script>
+</body>
+</html>
