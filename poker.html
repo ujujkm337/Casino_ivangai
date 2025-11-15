@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Казино: Покер (Упрощенный)</title>
+    <title>Онлайн Покер</title>
     <style>
-        /* CSS СТИЛИ - Общие и для Покера */
+        /* CSS СТИЛИ - Общие и для Покера - Оставлены по запросу */
         :root {
             --bg-color: #03040a;
             --accent-color: #00ffaa;
@@ -30,6 +30,7 @@
             min-height: 100vh;
             margin: 0;
             overflow-x: hidden;
+            text-align: center;
         }
         
         body.win-flash { animation: win-pulse 0.2s 5 alternate; background-color: #1a222c; }
@@ -72,26 +73,38 @@
         .main-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 7px 25px rgba(0, 255, 170, 0.8); }
         .main-button:disabled { background: #555; box-shadow: none; cursor: not-allowed; opacity: 0.6; }
 
-        /* Специфические стили для Покера */
-        .poker-hand-display { text-align: center; width: 100%; max-width: 400px; margin-bottom: 10px; }
-        .poker-hand-display p { font-size: 1em; font-weight: bold; margin: 8px 0; }
+        /* Специфические стили для Покера (Адаптированные для онлайн) */
+        .hand-container { 
+            text-align: center; 
+            min-height: 55px; 
+            margin-bottom: 15px;
+            display: flex; 
+            justify-content: center;
+            gap: 5px;
+        }
+        .card-container { display: inline-block; }
         .card { 
-            display: inline-block; 
-            width: 35px; 
-            height: 50px; 
-            line-height: 50px;
-            font-size: 0.9em;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            width: 45px; 
+            height: 70px; 
+            font-size: 1em;
             background-color: var(--card-color); 
             border: 1px solid #777; 
-            border-radius: 4px; 
+            border-radius: 6px; 
             box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5); 
-            margin: 0 2px; 
             text-align: center;
             font-weight: 700;
             color: var(--card-suit-black);
+            padding: 2px 0;
+            box-sizing: border-box;
         }
-        .card.red { color: var(--card-suit-red); }
-        .card.hidden { background-color: #555; color: transparent; border: 1px solid #ccc; }
+        .red-suit { color: var(--card-suit-red); }
+        .card-suit-symbol { font-size: 1.2em; line-height: 1; }
+        .card-back { background-color: #555; border: 3px solid var(--secondary-color); color: var(--text-color); font-size: 1.5em; display: flex; justify-content: center; align-items: center; }
+        
         .community-cards {
             border: 2px dashed #444;
             padding: 10px;
@@ -101,295 +114,220 @@
             justify-content: center;
             align-items: center;
             gap: 5px;
+            margin-bottom: 20px;
         }
         .poker-controls { 
             display: flex; 
             gap: 10px; 
             margin-top: 10px; 
-            flex-wrap: wrap;
-            justify-content: center;
+            flex-wrap: wrap; 
+            justify-content: center; 
+        } 
+        /* Стили для лобби */
+        .table-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid var(--accent-color);
+            border-radius: 8px;
+            background: rgba(0, 255, 170, 0.1);
         }
+        .table-item span { font-weight: bold; }
+
     </style>
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-
-<div class="casino-wrapper" id="casinoWrapper">
-    <div class="game-container">
-        <a href="index.html" style="color: var(--secondary-color); text-decoration: none; align-self: flex-start;">&larr; Назад в меню</a>
-        
-        <h1>🃏 Покер (Heads-up)</h1>
-        
-        <div class="header-controls">
-            <div class="display" id="balanceDisplay">Баланс: 500</div>
-            <div class="bet-input-group">
-                <span>Ставка:</span>
-                <input type="number" id="betAmount" value="10" min="10" max="1000">
-            </div>
-        </div>
-
-        <div class="game-view active" id="pokerView">
-            <div class="poker-hand-display">
-                <p>Дилер (Счет: <span id="dealerHandRank">?</span>): <span id="dealerHand">? | ?</span></p>
-                <div class="community-cards" id="communityCards">Общие карты:</div>
-                <p>Игрок (Счет: <span id="playerHandRank">?</span>): <span id="playerHand">? | ?</span></p>
+    <div class="casino-wrapper">
+        <div class="game-container">
+            <a href="index.html" class="main-button" style="width: auto; padding: 5px 10px; font-size: 1em; align-self: flex-start;">← Назад</a>
+            <div class="header-controls" style="justify-content: center;">
+                <div class="display" id="balanceDisplay">БАЛАНС: 0</div>
             </div>
             
-            <p>Банк: <span id="potAmount">0</span> кредитов</p>
+            <h1 style="color:var(--accent-color);">♠️ ОНЛАЙН ПОКЕР</h1>
+            <div class="display" id="messageDisplay" style="width: 100%; text-align: center; color: var(--text-color);">Подключение...</div>
+            
+            <div id="lobbyView" style="width: 100%; max-width: 450px; display: none;">
+                <h3 style="color:var(--secondary-color); margin-top: 5px;">ДОСТУПНЫЕ СТОЛЫ</h3>
+                <div id="tablesList" style="display:flex; flex-direction:column; gap:10px;">
+                    </div>
+            </div>
+            
+            <div id="gameView" style="display: none; width: 100%; max-width: 450px;">
+                
+                <h3 style="color:var(--red-color); margin-bottom: 0;">ОБЩИЙ БАНК (ПОТ): <span id="potAmount">0</span></h3>
+                <div class="community-cards" id="communityCards"></div>
 
-            <div class="poker-controls">
-                <button class="main-button" id="pokerDealButton" onclick="startPokerGame()">Начать игру</button>
-                <button class="main-button" id="pokerCallButton" onclick="playerAction('call')" disabled>Колл/Чек</button>
-                <button class="main-button" id="pokerFoldButton" onclick="playerAction('fold')" disabled>Фолд</button>
+                <h3 style="color:var(--accent-color); margin-bottom: 0;">ВАША РУКА</h3>
+                <div id="playerHand" class="hand-container"></div>
+                
+                <div id="otherPlayersInfo" style="margin-top: 10px; font-size: 0.9em;">
+                    </div>
+
+                <div id="actionButtons" class="poker-controls" style="display: none;">
+                    <button id="foldBtn" class="main-button" style="background: var(--red-color); box-shadow: none;">ФОЛД (FOLD)</button>
+                    <button id="checkCallBtn" class="main-button">ЧЕК/КОЛЛ (CHECK/CALL)</button>
+                    <input type="number" id="raiseAmount" value="50" min="10" style="width: 70px;">
+                    <button id="raiseBtn" class="main-button" style="background: var(--secondary-color);">РЕЙЗ (RAISE)</button>
+                </div>
+
+                <button id="leaveTableBtn" class="main-button" style="margin-top: 15px; background: #555; box-shadow: none;">ВЫЙТИ ИЗ КОМНАТЫ</button>
             </div>
         </div>
-
-        <div class="display" id="message">Нажмите "Начать игру"</div>
     </div>
-</div>
 
-<audio id="audioClick" src="https://www.soundjay.com/buttons/button-2.mp3" preload="auto"></audio>
-<audio id="audioSpin" src="https://www.soundjay.com/misc/spinning-2.mp3" preload="auto"></audio>
-<audio id="audioWin" src="https://www.soundjay.com/misc/success-trumpet.mp3" preload="auto"></audio>
-<audio id="audioLose" src="https://www.soundjay.com/misc/fail-buzzer-01.mp3" preload="auto"></audio>
+    <script>
+        // --- JS Логика Клиента ---
+        const socket = io();
+        let balance = parseInt(localStorage.getItem('casinoBalance')) || 1000;
+        let playerId = null;
+        let currentTableId = null;
 
-<script>
-    /*
-    ================================
-    JAVASCRIPT ЛОГИКА ПОКЕРА
-    ================================
-    */
-    
-    // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-    let balance = 500;
-    let isPokerActive = false;
-    let deck = [];
-    let playerHand = [];
-    let dealerHand = [];
-    let communityCards = [];
-    let pot = 0;
-    const CARD_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-
-    // ------------------------------------
-    // ОБЩИЕ ФУНКЦИИ
-    // ------------------------------------
-    
-    function playSound(name) {
-        const audio = document.getElementById(`audio${name.charAt(0).toUpperCase() + name.slice(1)}`);
-        if (audio) {
-            audio.currentTime = 0;
-            audio.play().catch(e => console.log("Audio playback failed:", e));
-        }
-    }
-
-    function getCurrentBet() {
-        const betInput = document.getElementById('betAmount');
-        let bet = parseInt(betInput.value) || 10;
-        bet = Math.min(Math.max(10, bet), balance || 10);
-        betInput.value = bet;
-        return bet;
-    }
-
-    function updateDisplay(msg = '') {
-        document.body.classList.remove('win-flash');
-        document.getElementById('balanceDisplay').textContent = `Баланс: ${balance} кредитов`;
-        document.getElementById('potAmount').textContent = pot;
-        if (msg) document.getElementById('message').textContent = msg;
-        
-        const currentBet = getCurrentBet();
-        const isBusy = isPokerActive; 
-
-        document.getElementById('pokerDealButton').disabled = isBusy || balance < currentBet;
-        document.getElementById('pokerCallButton').disabled = !isBusy;
-        document.getElementById('pokerFoldButton').disabled = !isBusy;
-        
-        if (balance < 10 && !isBusy) {
-            updateDisplay('💔 Недостаточно кредитов! Игра окончена.');
-        }
-    }
-
-    function triggerWinEffect() {
-        document.body.classList.add('win-flash');
-        playSound('win');
-        setTimeout(() => document.body.classList.remove('win-flash'), 1200);
-    }
-    
-    // ------------------------------------
-    // ЛОГИКА КАРТ
-    // ------------------------------------
-
-    function createDeck() {
-        const suits = ['♠️', '♥️', '♦️', '♣️'];
-        const newDeck = [];
-        for (const suit of suits) {
-            for (const rank of CARD_RANKS) {
-                newDeck.push({ rank, suit, color: (suit === '♥️' || suit === '♦️') ? 'red' : 'black' });
-            }
-        }
-        return newDeck.sort(() => Math.random() - 0.5); 
-    }
-
-    function getCard() {
-        if (deck.length === 0) deck = createDeck();
-        return deck.pop();
-    }
-    
-    function renderHand(hand, elementId, isHidden = false) {
-        const element = document.getElementById(elementId);
-        element.innerHTML = '';
-        
-        hand.forEach((card, index) => {
-            const cardDiv = document.createElement('span');
-            cardDiv.className = `card ${card.color}`;
-            cardDiv.textContent = card.rank + card.suit;
+        // --- УТИЛИТЫ UI (Те же, что и для Блэкджека) ---
+        function renderCard(cardData, targetElementId, faceUp = true) {
+            const container = document.getElementById(targetElementId);
+            const cardElement = document.createElement('div');
+            cardElement.className = 'card-container';
             
-            if (isHidden) {
-                cardDiv.className += ' hidden';
-                cardDiv.textContent = '??';
+            const rank = cardData.length > 1 ? cardData.slice(0, -1) : '?';
+            const suit = cardData.length > 1 ? cardData.slice(-1) : '?';
+            
+            const suitsMap = { 'C': '♣', 'D': '♦', 'H': '♥', 'S': '♠' };
+            const isRed = suit === 'H' || suit === 'D';
+            const suitSymbol = suitsMap[suit] || '?';
+            
+            if (!faceUp) {
+                cardElement.innerHTML = `<div class="card card-back">P</div>`;
+            } else {
+                cardElement.innerHTML = `
+                    <div class="card ${isRed ? 'red-suit' : 'black-suit'}">
+                        <span style="align-self: flex-start; margin-left: 3px; font-size: 0.8em;">${rank}</span>
+                        <span class="card-suit-symbol">${suitSymbol}</span>
+                        <span style="align-self: flex-end; margin-right: 3px; font-size: 0.8em; transform:rotate(180deg);">${rank}</span>
+                    </div>
+                `;
             }
-            element.appendChild(cardDiv);
-        });
-    }
-
-    // ------------------------------------
-    // ЛОГИКА ПОКЕРА
-    // ------------------------------------
-
-    function resetPoker() {
-        isPokerActive = false;
-        playerHand = [];
-        dealerHand = [];
-        communityCards = [];
-        pot = 0;
-        
-        renderHand([], 'playerHand');
-        renderHand([], 'dealerHand', true);
-        renderHand([], 'communityCards');
-        
-        document.getElementById('playerHand').textContent = '? | ?'; 
-        document.getElementById('dealerHand').textContent = '? | ?';
-        document.getElementById('playerHandRank').textContent = '?';
-        document.getElementById('dealerHandRank').textContent = '?';
-        document.getElementById('communityCards').textContent = 'Общие карты:';
-        
-        updateDisplay('Нажмите "Начать игру", чтобы сделать ставку.');
-    }
-    
-    function startPokerGame() {
-        const bet = getCurrentBet();
-        if (isPokerActive || balance < bet) return;
-        
-        resetPoker();
-        isPokerActive = true;
-        deck = createDeck();
-        
-        // Префлоп (Pre-flop)
-        balance -= bet; // Анте или ББ
-        pot += bet * 2; // Банк = Игрок (ставка) + Дилер (ставка)
-        
-        playerHand.push(getCard(), getCard());
-        dealerHand.push(getCard(), getCard());
-
-        renderHand(playerHand, 'playerHand');
-        renderHand(dealerHand, 'dealerHand', true);
-        
-        updateDisplay(`ПОКЕР: Начало игры. Банк: ${pot}. Решите: Колл/Чек или Фолд?`);
-        updateDisplay(); // Обновить кнопки
-    }
-
-    function playerAction(action) {
-        if (!isPokerActive) return;
-        
-        if (action === 'fold') {
-            // Игрок сбросил карты
-            pot = 0;
-            updateDisplay(`🙁 ПОКЕР: Вы сбросили карты (Fold). Проигрыш.`);
-            playSound('lose');
-            setTimeout(resetPoker, 2000);
-            return;
-        }
-        
-        // Колл/Чек - Переход к Флопу
-        dealerPlay();
-    }
-
-    function dealerPlay() {
-        // Флоп (Flop)
-        communityCards.push(getCard(), getCard(), getCard());
-        renderHand(communityCards, 'communityCards');
-        updateDisplay('ПОКЕР: Флоп открыт! Ждём Тёрн...');
-        
-        // Автоматический переход к шоудауну (для простоты)
-        setTimeout(showdown, 2000);
-    }
-    
-    function getHandRankName(rank) {
-        const names = ["Старшая Карта", "Пара", "Две Пары", "Тройка", "Стрит", "Флеш", "Фулл Хаус", "Каре", "Стрит-Флеш", "Роял-Флеш"];
-        return names[rank] || names[0];
-    }
-
-    function showdown() {
-        renderHand(dealerHand, 'dealerHand', false); // Открыть карты Дилера
-        
-        const playerRank = checkPokerHand(playerHand.concat(communityCards));
-        const dealerRank = checkPokerHand(dealerHand.concat(communityCards));
-        
-        document.getElementById('playerHandRank').textContent = getHandRankName(playerRank.rank);
-        document.getElementById('dealerHandRank').textContent = getHandRankName(dealerRank.rank);
-
-        let msg = '';
-        let winAmount = 0;
-
-        // Очень упрощенная проверка: побеждает тот, у кого выше ранг.
-        if (playerRank.rank > dealerRank.rank) {
-            winAmount = pot;
-            balance += winAmount;
-            triggerWinEffect();
-            msg = `🎉 ПОКЕР: ПОБЕДА! Ваш ${getHandRankName(playerRank.rank)} бьет Дилера. Банк ${winAmount} ваш!`;
-        } else if (playerRank.rank < dealerRank.rank) {
-            msg = `🙁 ПОКЕР: Вы проиграли. Дилер показал ${getHandRankName(dealerRank.rank)}.`;
-            playSound('lose');
-        } else {
-             // Ничья (Сплит пот)
-            winAmount = pot / 2;
-            balance += winAmount;
-            msg = `↔️ ПОКЕР: Ничья! Банк разделен. Вам возвращено ${winAmount} кредитов.`;
-            playSound('click');
+            container.appendChild(cardElement);
         }
 
-        pot = 0;
-        updateDisplay(msg);
-        setTimeout(resetPoker, 4000);
-    }
+        function updateGlobalBalance(newBalance) {
+            balance = newBalance;
+            localStorage.setItem('casinoBalance', balance);
+            document.getElementById('balanceDisplay').textContent = `БАЛАНС: ${balance}`;
+        }
 
-    // Эта функция невероятно сложна для JS. Здесь упрощенный мок (Mock)
-    // Ранги: 0-Старшая карта, 1-Пара, 2-Две Пары, 3-Тройка, 4-Стрит/Флеш (упрощенно)
-    function checkPokerHand(hand) {
-        const allRanks = hand.map(card => CARD_RANKS.indexOf(card.rank));
-        const rankCounts = {};
-        allRanks.forEach(rank => {
-            rankCounts[rank] = (rankCounts[rank] || 0) + 1;
+        function updateDisplay(msg = 'Выберите стол для игры.') {
+            document.getElementById('messageDisplay').innerHTML = msg;
+        }
+
+        function clearHands() {
+            document.getElementById('playerHand').innerHTML = '';
+            document.getElementById('communityCards').innerHTML = '';
+            document.getElementById('potAmount').textContent = '0';
+        }
+        
+        function showLobby() {
+            document.getElementById('lobbyView').style.display = 'flex';
+            document.getElementById('gameView').style.display = 'none';
+            currentTableId = null;
+            clearHands();
+            updateDisplay('Выберите стол для игры.');
+            socket.emit('auth_request'); // Запрос списка столов
+        }
+
+        function showGame() {
+            document.getElementById('lobbyView').style.display = 'none';
+            document.getElementById('gameView').style.display = 'flex';
+        }
+        
+        // --- SOCKET.IO HANDLERS ---
+        socket.on('connect', () => { socket.emit('auth_request'); });
+        
+        socket.on('auth_success', (data) => {
+            playerId = data.id;
+            updateGlobalBalance(data.balance);
+            if (!currentTableId) {
+                showLobby();
+                renderTableList(data.tables);
+            }
+        });
+        
+        socket.on('error_message', (msg) => { alert('[Ошибка]: ' + msg); updateDisplay(`❌ Ошибка: ${msg}`); });
+
+        function renderTableList(tables) {
+            const list = document.getElementById('tablesList');
+            list.innerHTML = '';
+            tables.filter(t => t.gameType === 'Poker').forEach(table => {
+                const item = document.createElement('div');
+                item.className = 'table-item';
+                item.innerHTML = `
+                    <span>Стол ${table.id.toUpperCase()} | Бай-ин от ${table.minBet} | Игроков: ${table.currentPlayers}/${table.maxPlayers}</span>
+                    <button class="main-button" onclick="joinTable('${table.id}')" style="width: auto; padding: 5px 15px; font-size: 1em;">СЕСТЬ</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+        
+        socket.on('game_start', (data) => {
+            currentTableId = data.tableId;
+            showGame();
+            updateDisplay('Ожидаем других игроков и начала раздачи.');
+        });
+        
+        socket.on('table_state', (data) => {
+            clearHands();
+            const selfData = data.players.find(p => p.id === playerId);
+            
+            // Рендер Общих карт (Покер)
+            data.communityCards.forEach(card => renderCard(card, 'communityCards', true));
+
+            // Рендер Руки Игрока
+            if (selfData) {
+                selfData.hand.forEach(card => renderCard(card, 'playerHand', true));
+            }
+            
+            // Обновление Пота
+            document.getElementById('potAmount').textContent = data.pot || '0';
+
+
+            // Управление UI (Покер: упрощенный)
+            // Показываем кнопки только во время хода игрока
+            document.getElementById('actionButtons').style.display = data.state === 'PLAYER_TURN' && selfData && selfData.active ? 'flex' : 'none';
+            
+            if (data.state === 'PLAYER_TURN' && selfData && selfData.active) updateDisplay(`ВАШ ХОД! (Пот: ${data.pot})`);
+            else if (data.state === 'WAITING_FOR_PLAYERS') updateDisplay(`Ожидаем игроков. Игроков: ${data.players.length}/${data.maxPlayers}`);
+            else updateDisplay(`Ожидаем хода других игроков...`);
+
+            // В реальном покере здесь должна быть сложная логика для отображения ставок, имени активного игрока и т.д.
         });
 
-        const counts = Object.values(rankCounts).sort((a, b) => b - a);
+        socket.on('return_to_lobby', () => { showLobby(); });
         
-        let rank = 0;
-        if (counts[0] >= 4) rank = 7; // Каре
-        else if (counts[0] === 3 && counts[1] >= 2) rank = 6; // Фулл Хаус
-        else if (counts[0] === 3) rank = 3; // Тройка
-        else if (counts[0] === 2 && counts[1] === 2) rank = 2; // Две Пары
-        else if (counts[0] === 2) rank = 1; // Пара
-        
-        // Шанс на Стрит/Флеш (чтобы игра не была скучной)
-        if (Math.random() < 0.1) rank = Math.max(rank, 4); // Стрит/Флеш
-        
-        return { rank, highCard: Math.max(...allRanks) };
-    }
 
+        // --- КЛИЕНТСКИЕ КНОПКИ (Покер) ---
+        function joinTable(tableId) { 
+            socket.emit('join_table', { tableId: tableId, gameType: 'Poker' }); 
+        }
+        
+        document.getElementById('checkCallBtn').onclick = () => { 
+            socket.emit('call_check', { tableId: currentTableId }); 
+        };
+        document.getElementById('raiseBtn').onclick = () => { 
+            const amount = parseInt(document.getElementById('raiseAmount').value);
+            if (amount >= 10 && amount <= balance) { 
+                socket.emit('raise', { tableId: currentTableId, amount: amount }); 
+            } else {
+                 alert('Неверная сумма рейза.');
+            }
+        };
+        document.getElementById('foldBtn').onclick = () => { 
+            socket.emit('fold', { tableId: currentTableId }); 
+        };
+        document.getElementById('leaveTableBtn').onclick = () => { if (confirm("Вы уверены?")) { socket.emit('leave_table'); } };
 
-    // Инициализация
-    window.onload = () => {
-        resetPoker();
-    };
-</script>
+        window.onload = () => { updateGlobalBalance(balance); };
+    </script>
 </body>
 </html>
